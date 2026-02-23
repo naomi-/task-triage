@@ -166,7 +166,7 @@ Return a JSON object with this structure:
     for attempt in range(2):
         try:
             response = _client.messages.create(
-                model="claude-3-sonnet-20240229",
+                model="claude-3-7-sonnet-20250219",
                 max_tokens=4096,
                 messages=[
                     {"role": "user", "content": user_prompt}
