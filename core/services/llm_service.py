@@ -175,7 +175,15 @@ Return a JSON object with this structure:
             )
 
             # Extract JSON from response
-            response_text = response.content[0].text
+            response_text = response.content[0].text.strip()
+            if response_text.startswith("```json"):
+                response_text = response_text[7:]
+            elif response_text.startswith("```"):
+                response_text = response_text[3:]
+            if response_text.endswith("```"):
+                response_text = response_text[:-3]
+            response_text = response_text.strip()
+            
             data = json.loads(response_text)
 
             # Validate and clean
