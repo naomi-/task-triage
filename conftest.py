@@ -27,27 +27,35 @@ def mock_voyage(monkeypatch):
 
 @pytest.fixture
 def mock_memgraph(monkeypatch):
-    """Replace the Memgraph driver with a no-op stub."""
+    """
+    Replace the Memgraph driver with a MagicMock.
+
+    Returns the driver mock so tests can configure what session.run() returns:
+
+        mock_memgraph.session.return_value.__enter__.return_value \\
+            .run.return_value.single.return_value = {"t": {...}}
+    """
+    from unittest.mock import MagicMock
     import core.services.graphrag_service as svc
 
-    class _FakeSession:
-        def run(self, query, **params):
-            class _Result:
-                def single(self):
-                    return {"n": 1}
-                def data(self):
-                    return []
-            return _Result()
-        def __enter__(self):
-            return self
-        def __exit__(self, *args):
-            pass
+    driver_mock = MagicMock()
 
-    class _FakeDriver:
-        def session(self):
-            return _FakeSession()
-        def close(self):
-            pass
+    # Default: single() returns {"n": 1} (keeps the ping test working)
+    (
+        driver_mock.session.return_value
+        .__enter__.return_value
+        .run.return_value
+        .single.return_value
+    ) = {"n": 1}
 
-    monkeypatch.setattr(svc, "_get_driver", lambda: _FakeDriver())
+    # Default: iterating the result returns an empty list (list_tasks etc.)
+    (
+        driver_mock.session.return_value
+        .__enter__.return_value
+        .run.return_value
+        .__iter__
+    ) = lambda self: iter([])
+
+    monkeypatch.setattr(svc, "_get_driver", lambda: driver_mock)
+    return driver_mock
 
