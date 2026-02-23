@@ -1,0 +1,57 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Log in — Cozy Triage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{% static 'core/style.css' %}" />
+</head>
+<body>
+<div class="auth-wrap">
+  <div class="auth-card">
+    <h1>🌿 Cozy Triage</h1>
+    <p class="subtitle">Welcome back — let's get organised.</p>
+
+    {% if form.non_field_errors %}
+    <ul class="messages">
+      {% for error in form.non_field_errors %}
+      <li class="error">{{ error }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    <form method="post" action="{% url 'login' %}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ next }}" />
+
+      <div class="form-group">
+        <label for="id_username">Username</label>
+        <input type="text" name="username" id="id_username" autocomplete="username"
+               placeholder="your username" autofocus required />
+        {% if form.username.errors %}
+        <p class="form-errors">{{ form.username.errors.0 }}</p>
+        {% endif %}
+      </div>
+
+      <div class="form-group">
+        <label for="id_password">Password</label>
+        <input type="password" name="password" id="id_password" autocomplete="current-password"
+               placeholder="••••••••" required />
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block" style="margin-top:.5rem">
+        Log in
+      </button>
+    </form>
+
+    <p style="text-align:center;margin-top:1.25rem;font-size:.88rem;color:var(--clr-text-muted)">
+      New here? <a href="{% url 'signup' %}">Create an account</a>
+    </p>
+  </div>
+</div>
+</body>
+</html>
+

@@ -1,0 +1,68 @@
+{% extends "core/base.html" %}
+
+{% block title %}Home — Cozy Triage{% endblock %}
+
+{% block content %}
+<h1 class="page-title">
+  Good day, {{ user.username }} ✨
+</h1>
+
+<!-- Stats row -->
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-num">{{ next_tasks|length }}</div>
+    <div class="stat-label">Next actions</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">{{ inbox_count }}</div>
+    <div class="stat-label">In inbox</div>
+  </div>
+</div>
+
+<!-- Brain dump CTA -->
+{% if inbox_count > 0 %}
+<div class="card" style="margin-bottom:2rem;border-left:4px solid var(--clr-accent)">
+  <strong>🗂 {{ inbox_count }} item{{ inbox_count|pluralize }} waiting in your inbox.</strong>
+  <span style="color:var(--clr-text-muted);font-size:.9rem;margin-left:.5rem">
+    Ready to triage?
+  </span>
+  <a href="#" class="btn btn-primary" style="margin-left:1rem;font-size:.85rem;padding:.4rem .9rem">
+    Triage now
+  </a>
+</div>
+{% else %}
+<div class="card" style="margin-bottom:2rem">
+  <strong>📝 Brain dump something</strong>
+  <p style="color:var(--clr-text-muted);font-size:.9rem;margin-top:.35rem">
+    Paste anything on your mind and let Cozy Triage sort it out.
+  </p>
+  <a href="#" class="btn btn-primary" style="margin-top:.9rem;font-size:.85rem">
+    Open inbox
+  </a>
+</div>
+{% endif %}
+
+<!-- Next actions list -->
+<p class="section-title">Your next actions</p>
+
+{% if next_tasks %}
+<ul class="task-list">
+  {% for task in next_tasks %}
+  <li class="task-item">
+    <div>
+      <div class="task-title">{{ task.title }}</div>
+      {% if task.next_action %}
+      <div class="task-next">→ {{ task.next_action }}</div>
+      {% endif %}
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<div class="empty-state">
+  No next actions yet — triage your inbox to get started 🌱
+</div>
+{% endif %}
+
+{% endblock %}
+

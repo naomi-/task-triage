@@ -1,0 +1,49 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Cozy Triage{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{% static 'core/style.css' %}" />
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<nav class="site-nav">
+  <span class="brand">🌿 Cozy Triage</span>
+  {% if user.is_authenticated %}
+  <div class="nav-links">
+    <a href="{% url 'dashboard' %}">Home</a>
+    <a href="#">Inbox</a>
+    <a href="#">Tasks</a>
+    <a href="#">Projects</a>
+    <form method="post" action="{% url 'logout' %}" style="display:inline">
+      {% csrf_token %}
+      <button type="submit" style="background:none;border:none;cursor:pointer;color:var(--clr-text-muted);font-size:.9rem;padding:0;">
+        Log out
+      </button>
+    </form>
+  </div>
+  {% endif %}
+</nav>
+
+<main class="page-wrap">
+  {% if messages %}
+  <ul class="messages">
+    {% for message in messages %}
+    <li class="{{ message.tags }}">{{ message }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  {% block content %}{% endblock %}
+</main>
+
+{% block extra_js %}{% endblock %}
+</body>
+</html>
+
