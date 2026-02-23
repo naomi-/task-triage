@@ -44,7 +44,7 @@ def run_triage(user_id: str, brain_dump: str) -> dict:
             id=session_id,
             created_at=datetime.now(timezone.utc),
             input_text=brain_dump,
-            model="claude-3-7-sonnet-20250219",
+            model="claude-sonnet-4-6",
             prompt_version="v1",
         )
         graphrag_service.create_triage_session(user_id, session)
