@@ -146,7 +146,7 @@ def _task_from_record(t) -> TaskNode:
         description=t.get("description", ""),
         next_action=t.get("next_action"),
         due_date=_dt(t.get("due_date")),
-        konmari_signal=t.get("konmari_signal"),
+        energy_signal=t.get("energy_signal"),
         embedding=list(t["embedding"]) if t.get("embedding") is not None else None,
     )
 
@@ -173,7 +173,7 @@ def create_task(user_id: str, task: TaskNode) -> str:
                 urgency:         $urgency,
                 effort:          $effort,
                 due_date:        $due_date,
-                konmari_signal:  $konmari_signal,
+                energy_signal:   $energy_signal,
                 created_at:      $created_at,
                 updated_at:      $updated_at,
                 embedding_model: $embedding_model,
@@ -191,7 +191,7 @@ def create_task(user_id: str, task: TaskNode) -> str:
             urgency=task.urgency,
             effort=task.effort,
             due_date=task.due_date.isoformat() if task.due_date else None,
-            konmari_signal=task.konmari_signal,
+            energy_signal=task.energy_signal,
             created_at=task.created_at.isoformat(),
             updated_at=task.updated_at.isoformat(),
             embedding_model=task.embedding_model,

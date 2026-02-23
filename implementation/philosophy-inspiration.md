@@ -128,26 +128,29 @@ This reduces duplicate effort and decision fatigue.
 
 ---
 
-# 4. KonMari (Marie Kondo) — Value & Energy Signal
+# 4. KonMari (Marie Kondo) — Inspiration for the Energy Signal
 Overview: https://konmari.com/
 
 ## Core idea
-Keep items that “spark joy”; release what does not.
+Marie Kondo's KonMari method asks: does this item "spark joy"?  We borrow that
+spirit and apply it to tasks — not as a moral judgment, but as a
+**prioritization signal** that reflects how you feel about doing the work.
 
-In this app:
-This is NOT used as a moral judgment.
-It is a **prioritization signal**.
-
-## Signals (MVP)
-Each task may optionally carry `konmari_signal`:
-- `JOY`     → energizing or meaningful
+## `energy_signal` field (MVP)
+Each task may optionally carry `energy_signal`:
+- `JOY`     → energizing or meaningful; you want to do this
 - `NEUTRAL` → no strong feeling either way
 - `DRAIN`   → heavy, aversive, or emotionally costly
 
-This is the MVP stand-in for a richer **Energy & Affect Profile** planned for a future
-release (see `future-plans.md`). That profile will capture dimensions like energy load,
-emotional resistance, collaboration needs, and environmental context tags
+The field name is deliberately generic so it extends cleanly to the richer
+**Energy & Affect Profile** planned for a future release (see `future-plans.md`).
+That profile will capture dimensions like energy load, emotional resistance,
+collaboration needs, and environmental context tags
 (e.g. "outdoor", "computer", "creative").
+
+> **Note on naming:** We were inspired by the KonMari method but have not used
+> "KonMari" as a product name or branding.  Marie Kondo and KonMari are
+> trademarks of KonMari Media Inc.
 
 ## How it’s used
 - Helps the LLM suggest:
@@ -167,13 +170,13 @@ emotional resistance, collaboration needs, and environmental context tags
 GTD | Clear next actions & trusted capture |
 PARA | Structural organization by actionability |
 Second Brain | Long-term knowledge graph & reuse |
-KonMari | Emotional/energy awareness |
+KonMari (inspiration) | Emotional/energy awareness |
 
 Together they enable:
 - Cognitive offloading (GTD)
 - Structural clarity (PARA)
 - Contextual memory (GraphRAG / Second Brain)
-- Energy-aware prioritization (KonMari)
+- Energy-aware prioritization (inspired by KonMari)
 
 ---
 
@@ -192,8 +195,8 @@ Together they enable:
 - Graph relationships
 - Vector embeddings for semantic recall
 
-## KonMari
-- optional `konmari_signal` on tasks
+## KonMari (inspiration)
+- optional `energy_signal` on tasks (JOY / NEUTRAL / DRAIN)
 
 ---
 

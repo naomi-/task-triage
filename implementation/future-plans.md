@@ -48,11 +48,11 @@ dependency entirely.
 
 ## 3. Energy & Affect Profile — Rich Emotional Context on Tasks
 
-**What it is:** A richer replacement for the MVP `konmari_signal` field. Instead of
+**What it is:** A richer replacement for the MVP `energy_signal` field. Instead of
 a single three-way signal (JOY / NEUTRAL / DRAIN), this would be a structured
 profile capturing multiple dimensions of a task's emotional and energetic character.
 
-**Why deferred:** The MVP `konmari_signal` is sufficient to enable the core
+**Why deferred:** The MVP `energy_signal` is sufficient to enable the core
 prioritization and scheduling hints. The full profile requires more UX work
 (how does the user input it? free text parsed by Claude? structured sliders?),
 more data model complexity, and careful prompt design to avoid the LLM over-assigning
@@ -76,9 +76,9 @@ emotional labels.
 - `context_tags: ["phone"]` → batch with other phone calls
 - `resistance >= 4` → suggest breaking into smaller steps or asking for help
 
-**Migration path:** The `konmari_signal` field stays on `Task`. Once the Energy &
+**Migration path:** The `energy_signal` field stays on `Task`. Once the Energy &
 Affect Profile schema is finalized, add the new fields alongside it (non-breaking).
-Deprecate `konmari_signal` in a later release once the richer profile is backfilled.
+Deprecate `energy_signal` in a later release once the richer profile is backfilled.
 
 ---
 

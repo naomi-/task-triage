@@ -34,7 +34,12 @@ class TaskEffort:
     VALUES = {XS, S, M, L, XL}
 
 
-class KonmariSignal:
+class EnergySignal:
+    """
+    How this task feels energetically.  Inspired by the KonMari principle of
+    noticing whether something sparks joy — extended here to a three-point
+    scale across positive, neutral, and draining tasks.
+    """
     JOY = "JOY"
     NEUTRAL = "NEUTRAL"
     DRAIN = "DRAIN"
@@ -73,7 +78,7 @@ class TaskNode:
     description: str = ""
     next_action: Optional[str] = None
     due_date: Optional[datetime] = None
-    konmari_signal: Optional[str] = None  # KonmariSignal value
+    energy_signal: Optional[str] = None   # EnergySignal value (JOY / NEUTRAL / DRAIN)
     embedding: Optional[list[float]] = None
 
 

@@ -42,7 +42,7 @@ Phase 0 (Bootstrap) ──► Phase 1 (Data Layer) ──► Phase 3 (AI Pipelin
 - [ ] Python dataclasses / DTOs mirroring each node type (User, Task, Project, Area, Resource, TriageSession, Suggestion)
 - [ ] `graphrag_service`: CRUD + relationship creation for all node/edge types
 - [ ] **Every query includes `(u:User {id: $user_id})-[:OWNS]->` ownership filter** — no exceptions
-- [ ] `konmari_signal` (JOY / NEUTRAL / DRAIN) and `next_action` on Task node (see `data-model.md`)
+- [ ] `energy_signal` (JOY / NEUTRAL / DRAIN) and `next_action` on Task node (see `data-model.md`)
 
 ### Dependencies
 - Phase 0 complete

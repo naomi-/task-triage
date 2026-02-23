@@ -40,7 +40,7 @@ Called when the user clicks "Apply" after reviewing. All writes are atomic.
 
 For each **accepted** Suggestion:
 - Create Task node with all accepted/edited fields (title, description,
-  next_action, status, priority, urgency, effort, due_date, konmari_signal,
+  next_action, status, priority, urgency, effort, due_date, energy_signal,
   embedding, embedding_model)
 - Create `(User)-[:OWNS]->(Task)`
 - For each entry in `project_suggestions` (zero or more):

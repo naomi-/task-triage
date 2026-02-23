@@ -91,7 +91,7 @@ class TestGetTaskUnit:
             "description": "",
             "next_action": None,
             "due_date": None,
-            "konmari_signal": None,
+            "energy_signal": None,
             "embedding": None,
         }
         fake_record = {"t": fake_node}

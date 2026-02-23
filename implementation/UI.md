@@ -123,7 +123,7 @@ For each suggested item:
 - By Area
 - By Project
 - By Effort (quick wins vs deep work)
-- By KonMari signal (optional badge)
+- By energy signal (optional badge: JOY / NEUTRAL / DRAIN)
 
 **Task card fields**
 - Title

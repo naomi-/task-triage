@@ -2,7 +2,7 @@
 
 ## Node labels
 - User {id, email, created_at, preferences_json}
-- Task {id, title, description, next_action?, status, priority, urgency, effort, due_date?, konmari_signal?, created_at, updated_at, embedding, embedding_model}
+- Task {id, title, description, next_action?, status, priority, urgency, effort, due_date?, energy_signal?, created_at, updated_at, embedding, embedding_model}
 - Project {id, name, outcome, status}
 - Area {id, name}
 - Resource {id, name, type, url?}
@@ -23,7 +23,7 @@
 ## Task enums
 status: INBOX | NEXT | IN_PROGRESS | WAITING | SOMEDAY | DONE | ARCHIVED
 effort: XS | S | M | L | XL
-konmari_signal: JOY | NEUTRAL | DRAIN  (optional; MVP stand-in for future energy profile)
+energy_signal: JOY | NEUTRAL | DRAIN  (optional; how this task feels energetically — inspired by KonMari; MVP stand-in for future energy profile)
 
 ## Status meanings
 - INBOX       → captured, not yet triaged
