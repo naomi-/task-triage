@@ -1,0 +1,46 @@
+{% extends "core/base.html" %}
+
+{% block title %}Inbox - Cozy Triage{% endblock %}
+
+{% block content %}
+<section class="card flow" style="max-width: 600px; margin: 2rem auto;">
+  <h2>What's on your mind?</h2>
+  <p class="text-muted">Brain dump your thoughts, tasks, and ideas here. The AI will sort them out.</p>
+
+  {% if error %}
+  <div class="notification" style="color: var(--clr-brand-drain); background: #ffebee; padding: 1rem; border-radius: 4px;">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  <form method="post" id="inbox-form">
+    {% csrf_token %}
+    <div class="form-group">
+      <textarea 
+        name="brain_dump" 
+        rows="8" 
+        placeholder="e.g. Need to call the dentist. Also buy milk. Ask Sarah about the Q3 report..."
+        style="width: 100%; border: 1px solid #ccc; border-radius: var(--radius-sm); padding: 0.75rem; font-family: inherit; resize: vertical;"
+        required
+      >{{ brain_dump_content|default_if_none:"" }}</textarea>
+    </div>
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+      <span id="loading-indicator" style="display: none; color: var(--clr-text-muted);">
+        ✨ Triaging your thoughts... please wait...
+      </span>
+      <button type="submit" id="submit-btn" class="btn">Sort it out</button>
+    </div>
+  </form>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.getElementById('inbox-form').addEventListener('submit', function(e) {
+    document.getElementById('submit-btn').disabled = true;
+    document.getElementById('submit-btn').textContent = 'Processing...';
+    document.getElementById('loading-indicator').style.display = 'inline-block';
+  });
+</script>
+{% endblock %}

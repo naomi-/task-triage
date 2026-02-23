@@ -63,11 +63,10 @@ def run_triage(user_id: str, brain_dump: str) -> dict:
             embedding = embeddings_service.embed_query(item["action_title"])
 
             # Search for similar tasks in user's graph
-            similar_tasks = graphrag_service.vector_search_tasks(
+            similar_tasks = graphrag_service.find_similar_tasks(
                 user_id=user_id,
                 embedding=embedding,
                 limit=3,
-                threshold=0.85,
             )
 
             # Build payload JSON with all suggestion data
@@ -85,8 +84,8 @@ def run_triage(user_id: str, brain_dump: str) -> dict:
                 "needs_clarification": item.get("needs_clarification", False),
                 "clarifying_questions": item.get("clarifying_questions", []),
                 "duplicate_candidates": [
-                    {"task_id": t.id, "reason": f"Similarity: {t.title}"}
-                    for t in similar_tasks
+                    {"task_id": t.id, "reason": f"Similarity: {sim:.2f}, Title: {t.title}"}
+                    for t, sim in similar_tasks if sim > 0.85
                 ],
                 "next_action": item.get("next_action", ""),
             }
@@ -163,4 +162,85 @@ def _fetch_user_context(user_id: str) -> dict:
             "active_areas": [],
             "recent_decisions": [],
         }
+
+
+def apply_suggestions(user_id: str, session_id: str, decisions: list[dict]) -> None:
+    """
+    Applies the decisions made in the triage review UI.
+    
+    Args:
+        user_id: String
+        session_id: String
+        decisions: List of dicts, format: 
+                   [{"id": "{suggestion_id}", "action": "accept"|"reject", "edited_data": {...}}]
+    """
+    from core.dtos import TaskNode
+    
+    # fetch the actual suggestions to get original payloads
+    all_sugs = graphrag_service.get_suggestions_for_session(user_id, session_id)
+    sug_map = {s.id: s for s in all_sugs}
+    
+    for d in decisions:
+        sug_id = d.get("id")
+        action = d.get("action")
+        edited_data = d.get("edited_data", {})
+        
+        if not sug_id or not action:
+            continue
+            
+        accepted = (action == "accept")
+        
+        # update accepted_bool
+        graphrag_service.update_suggestion_accepted(user_id, sug_id, accepted)
+        logger.info(f"Updated suggestion {sug_id} accepted_bool={accepted} for user {user_id}")
+        
+        if accepted:
+            sug = sug_map.get(sug_id)
+            if not sug:
+                continue
+                
+            try:
+                payload = json.loads(sug.payload_json)
+            except Exception:
+                payload = {}
+                
+            task_id = str(uuid.uuid4())
+            
+            # Embed the final title
+            final_title = edited_data.get("action_title") or payload.get("action_title", "Untitled Task")
+            embedding = embeddings_service.embed_query(final_title)
+            
+            # Create Task
+            task = TaskNode(
+                id=task_id,
+                title=final_title,
+                status=edited_data.get("status") or payload.get("status", TaskStatus.INBOX),
+                priority=int(edited_data.get("priority") or payload.get("priority", 3)),
+                urgency=int(edited_data.get("urgency") or payload.get("urgency", 3)),
+                effort=edited_data.get("effort") or payload.get("effort", "M"),
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+                embedding_model="voyage-3",
+                description=edited_data.get("description") or payload.get("description", ""),
+                next_action=edited_data.get("next_action") or payload.get("next_action", ""),
+                energy_signal=payload.get("energy_signal"),
+                embedding=embedding
+            )
+            
+            graphrag_service.create_task(user_id, task)
+            logger.info(f"Created Task {task.id} from suggestion {sug_id}")
+            
+            # Process Projects
+            projs = edited_data.get("project_suggestions") or payload.get("project_suggestions", [])
+            for p_name in projs:
+                p_node = graphrag_service.find_or_create_project(user_id, p_name)
+                graphrag_service.create_task_part_of_project(task_id, p_node.id)
+                logger.debug(f"Linked task {task_id} to project {p_node.id}")
+                
+            # Process Areas
+            areas = edited_data.get("area_suggestions") or payload.get("area_suggestions", [])
+            for a_name in areas:
+                a_node = graphrag_service.find_or_create_area(user_id, a_name)
+                graphrag_service.create_task_in_area(task_id, a_node.id)
+                logger.debug(f"Linked task {task_id} to area {a_node.id}")
 

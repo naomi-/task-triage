@@ -1,0 +1,234 @@
+{% extends "core/base.html" %}
+
+{% block title %}Triage Review - Cozy Triage{% endblock %}
+
+{% block extra_head %}
+<style>
+    .review-grid {
+        display: grid;
+        gap: 1.5rem;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        margin-top: 1.5rem;
+    }
+
+    .suggestion-card {
+        border: 2px solid transparent;
+        transition: border-color 0.2s;
+    }
+
+    .suggestion-card.accepted {
+        border-color: var(--clr-brand-joy);
+        background-color: #f6ffed;
+    }
+
+    .suggestion-card.rejected {
+        border-color: var(--clr-brand-drain);
+        opacity: 0.6;
+    }
+
+    .field-row {
+        margin-bottom: 0.5rem;
+    }
+
+    .field-label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--clr-text-muted);
+        text-transform: uppercase;
+    }
+
+    .editable-input {
+        width: 100%;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.95rem;
+    }
+
+    .badge {
+        display: inline-block;
+        padding: 0.2rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        background: #e0e0e0;
+    }
+
+    .badge.priority-high {
+        background: #ffebee;
+        color: #c62828;
+    }
+
+    .badge.priority-med {
+        background: #fff3e0;
+        color: #ef6c00;
+    }
+
+    .badge.status {
+        background: #e3f2fd;
+        color: #1565c0;
+    }
+
+    .actions-row {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #eee;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <h2>Review Suggestions</h2>
+        <p class="text-muted">The AI has processed your brain dump. Review and apply these tasks.</p>
+    </div>
+    <div style="display: flex; gap: 1rem;">
+        <button type="button" class="btn" onclick="acceptAll()"
+            style="background: var(--clr-brand-joy); color: white; border: none;">Accept All Suggestions</button>
+    </div>
+</div>
+
+<form id="triage-form" method="post" action="{% url 'triage_review' session.id %}">
+    {% csrf_token %}
+    <input type="hidden" name="decisions" id="decisions-input" value="[]">
+
+    <div class="review-grid">
+        {% for sug in suggestions %}
+        <div class="card suggestion-card" id="card-{{ sug.id }}">
+            <div class="field-row">
+                <div class="field-label">Action Title</div>
+                <input type="text" class="editable-input" id="title-{{ sug.id }}" value="{{ sug.action_title }}">
+            </div>
+
+            {% if sug.next_action %}
+            <div class="field-row">
+                <div class="field-label">Next Action</div>
+                <input type="text" class="editable-input" id="next_action-{{ sug.id }}" value="{{ sug.next_action }}">
+            </div>
+            {% endif %}
+
+            <div class="field-row" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <span class="badge status">{{ sug.status }}</span>
+                <span
+                    class="badge priority-{% if sug.priority >= 4 %}high{% elif sug.priority == 3 %}med{% else %}low{% endif %}">
+                    P{{ sug.priority }} / U{{ sug.urgency }}
+                </span>
+                <span class="badge">Effort: {{ sug.effort }}</span>
+            </div>
+
+            {% if sug.project_suggestions %}
+            <div class="field-row">
+                <div class="field-label">Suggested Project</div>
+                <select class="editable-input" id="project-{{ sug.id }}">
+                    <option value="">-- None --</option>
+                    {% for p in sug.project_suggestions %}
+                    <option value="{{ p }}" selected>{{ p }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+
+            {% if sug.duplicate_candidates %}
+            <div
+                style="background: #fff3e0; border-left: 3px solid orange; padding: 0.5rem; margin-top: 0.5rem; font-size: 0.85rem;">
+                <strong>Possible Duplicate:</strong><br>
+                {% for dup in sug.duplicate_candidates %}
+                &bull; {{ dup.reason }}<br>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="actions-row">
+                <button type="button" class="btn" style="flex: 1;"
+                    onclick="markDecision('{{ sug.id }}', 'accept')">Accept</button>
+                <button type="button" class="btn" style="flex: 1; opacity: 0.7;"
+                    onclick="markDecision('{{ sug.id }}', 'reject')">Reject</button>
+            </div>
+        </div>
+        {% empty %}
+        <div class="card" style="grid-column: 1 / -1; text-align: center; padding: 3rem;">
+            <h3>All caught up!</h3>
+            <p class="text-muted">No pending suggestions found for this session.</p>
+            <a href="{% url 'inbox' %}" class="btn">Go back to Inbox</a>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if suggestions %}
+    <div style="margin-top: 2rem; text-align: right;">
+        <button type="button" class="btn" onclick="submitDecisions()"
+            style="font-size: 1.1rem; padding: 0.75rem 2rem;">Apply Decisions</button>
+    </div>
+    {% endif %}
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let decisions = {};
+
+    function markDecision(id, action) {
+        const card = document.getElementById(`card-${id}`);
+
+        // Reset classes
+        card.classList.remove('accepted', 'rejected');
+
+        if (action === 'accept') {
+            card.classList.add('accepted');
+        } else if (action === 'reject') {
+            card.classList.add('rejected');
+        }
+
+        // Store decision
+        decisions[id] = action;
+    }
+
+    function acceptAll() {
+        {% for sug in suggestions %}
+        markDecision('{{ sug.id }}', 'accept');
+        {% endfor %}
+    }
+
+    function submitDecisions() {
+        const payload = [];
+
+        // Only process cards that have a decision
+        for (const [id, action] of Object.entries(decisions)) {
+            const item = {
+                id: id,
+                action: action,
+                edited_data: {}
+            };
+
+            // If accepted, gather the edited fields
+            if (action === 'accept') {
+                const titleInput = document.getElementById(`title-${id}`);
+                if (titleInput) item.edited_data.action_title = titleInput.value;
+
+                const nextActionInput = document.getElementById(`next_action-${id}`);
+                if (nextActionInput) item.edited_data.next_action = nextActionInput.value;
+
+                const projectSelect = document.getElementById(`project-${id}`);
+                if (projectSelect && projectSelect.value) {
+                    item.edited_data.project_suggestions = [projectSelect.value];
+                } else {
+                    item.edited_data.project_suggestions = [];
+                }
+            }
+
+            payload.push(item);
+        }
+
+        if (payload.length === 0) {
+            alert("Please accept or reject at least one suggestion.");
+            return;
+        }
+
+        document.getElementById('decisions-input').value = JSON.stringify(payload);
+        document.getElementById('triage-form').submit();
+    }
+</script>
+{% endblock %}

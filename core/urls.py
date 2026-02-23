@@ -23,5 +23,11 @@ urlpatterns = [
         auth_views.LogoutView.as_view(),
         name="logout",
     ),
-]
 
+    # Triage Pipeline
+    path("inbox/", views.inbox, name="inbox"),
+    path("triage/<str:session_id>/", views.triage_review, name="triage_review"),
+    
+    # Tasks
+    path("tasks/", views.tasks, name="tasks"),
+]
