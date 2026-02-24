@@ -30,4 +30,10 @@ urlpatterns = [
     
     # Tasks
     path("tasks/", views.tasks, name="tasks"),
+
+    # JSON API
+    path("api/inbox/", views.api_inbox, name="api_inbox"),
+    path("api/triage/apply/", views.api_triage_apply, name="api_triage_apply"),
+    path("api/triage/<str:session_id>/", views.api_triage_suggestions, name="api_triage_suggestions"),
+    path("api/tasks/", views.api_tasks, name="api_tasks"),
 ]

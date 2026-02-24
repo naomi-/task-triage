@@ -30,12 +30,20 @@ from core.dtos import (
 # Driver helpers
 # ---------------------------------------------------------------------------
 
+_driver_instance = None
+
 def _get_driver() -> Driver:
     """Return a connected Neo4j/Bolt driver for Memgraph."""
-    return GraphDatabase.driver(
-        settings.MEMGRAPH_URI,
-        auth=(settings.MEMGRAPH_USERNAME, settings.MEMGRAPH_PASSWORD),
-    )
+    global _driver_instance
+    if _driver_instance is None:
+        _driver_instance = GraphDatabase.driver(
+            settings.MEMGRAPH_URI,
+            auth=(settings.MEMGRAPH_USERNAME, settings.MEMGRAPH_PASSWORD),
+            max_connection_lifetime=300, # 5 min
+            max_connection_pool_size=50,
+            connection_acquisition_timeout=30.0
+        )
+    return _driver_instance
 
 
 def ping() -> dict:
@@ -53,7 +61,6 @@ def ping() -> dict:
         result = session.run("RETURN 1 AS n")
         record = result.single()
         assert record["n"] == 1, "Unexpected response from Memgraph"
-    driver.close()
     return {"ok": True, "server": settings.MEMGRAPH_URI}
 
 
@@ -103,7 +110,6 @@ def create_user(user: UserNode) -> str:
             created_at=user.created_at.isoformat(),
             preferences_json=user.preferences_json,
         )
-    driver.close()
     return user.id
 
 
@@ -116,7 +122,6 @@ def get_user(user_id: str) -> Optional[UserNode]:
             id=user_id,
         )
         record = result.single()
-    driver.close()
     if record is None:
         return None
     u = record["u"]
@@ -197,7 +202,6 @@ def create_task(user_id: str, task: TaskNode) -> str:
             embedding_model=task.embedding_model,
             embedding=task.embedding,
         )
-    driver.close()
     return task.id
 
 
@@ -217,7 +221,6 @@ def get_task(user_id: str, task_id: str) -> Optional[TaskNode]:
             task_id=task_id,
         )
         record = result.single()
-    driver.close()
     if record is None:
         return None
     return _task_from_record(record["t"])
@@ -248,7 +251,6 @@ def list_tasks(user_id: str, status: Optional[str] = None) -> list[TaskNode]:
                 user_id=user_id,
             )
         records = list(result)
-    driver.close()
     return [_task_from_record(r["t"]) for r in records]
 
 
@@ -273,7 +275,6 @@ def update_task(user_id: str, task_id: str, updates: dict) -> bool:
             **updates,
         )
         record = result.single()
-    driver.close()
     return record is not None
 
 
@@ -305,7 +306,6 @@ def find_or_create_project(user_id: str, name: str, outcome: str = "") -> Projec
         record = result.single()
         if record:
             p = record["p"]
-            driver.close()
             return ProjectNode(
                 id=p["id"],
                 name=p["name"],
@@ -326,7 +326,6 @@ def find_or_create_project(user_id: str, name: str, outcome: str = "") -> Projec
             outcome=outcome,
             status=ProjectStatus.ACTIVE,
         )
-    driver.close()
     return ProjectNode(id=new_id, name=name, outcome=outcome)
 
 
@@ -341,7 +340,6 @@ def list_projects(user_id: str) -> list[ProjectNode]:
             user_id=user_id,
         )
         records = list(result)
-    driver.close()
     return [
         ProjectNode(
             id=r["p"]["id"],
@@ -377,7 +375,6 @@ def find_or_create_area(user_id: str, name: str) -> AreaNode:
         record = result.single()
         if record:
             a = record["a"]
-            driver.close()
             return AreaNode(id=a["id"], name=a["name"])
         new_id = _new_id()
         session.run(
@@ -390,7 +387,6 @@ def find_or_create_area(user_id: str, name: str) -> AreaNode:
             id=new_id,
             name=name,
         )
-    driver.close()
     return AreaNode(id=new_id, name=name)
 
 
@@ -403,7 +399,6 @@ def list_areas(user_id: str) -> list[AreaNode]:
             user_id=user_id,
         )
         records = list(result)
-    driver.close()
     return [AreaNode(id=r["a"]["id"], name=r["a"]["name"]) for r in records]
 
 
@@ -434,7 +429,6 @@ def create_triage_session(user_id: str, session_node: TriageSessionNode) -> str:
             model=session_node.model,
             prompt_version=session_node.prompt_version,
         )
-    driver.close()
     return session_node.id
 
 
@@ -451,7 +445,6 @@ def get_triage_session(user_id: str, session_id: str) -> Optional[TriageSessionN
             session_id=session_id,
         )
         record = result.single()
-    driver.close()
     if record is None:
         return None
     ts = record["ts"]
@@ -501,7 +494,6 @@ def create_suggestion(
             payload_json=suggestion.payload_json,
             accepted_bool=suggestion.accepted_bool,
         )
-    driver.close()
     return suggestion.id
 
 
@@ -521,7 +513,6 @@ def get_suggestions_for_session(
             session_id=session_id,
         )
         records = list(result)
-    driver.close()
     return [
         SuggestionNode(
             id=r["s"]["id"],
@@ -551,7 +542,6 @@ def update_suggestion_accepted(
             accepted=accepted,
         )
         record = result.single()
-    driver.close()
     return record is not None
 
 
@@ -571,7 +561,6 @@ def create_task_part_of_project(task_id: str, project_id: str) -> None:
             task_id=task_id,
             project_id=project_id,
         )
-    driver.close()
 
 
 def create_task_in_area(task_id: str, area_id: str) -> None:
@@ -586,7 +575,6 @@ def create_task_in_area(task_id: str, area_id: str) -> None:
             task_id=task_id,
             area_id=area_id,
         )
-    driver.close()
 
 
 def create_task_duplicate_of(task_id: str, existing_task_id: str) -> None:
@@ -601,7 +589,6 @@ def create_task_duplicate_of(task_id: str, existing_task_id: str) -> None:
             task_id=task_id,
             existing_task_id=existing_task_id,
         )
-    driver.close()
 
 
 # ---------------------------------------------------------------------------
@@ -639,6 +626,5 @@ def find_similar_tasks(
             embedding=embedding,
         )
         records = list(result)
-    driver.close()
     return [(_task_from_record(r["t"]), r["similarity"]) for r in records]
 

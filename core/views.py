@@ -10,10 +10,11 @@ from datetime import datetime, timezone
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
-
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from core.forms import SignupForm
 from core.services import graphrag_service
-from core.dtos import UserNode, TaskStatus
+from core.dtos import UserNode, TaskStatus, TaskNode, ProjectNode, AreaNode
 
 logger = logging.getLogger(__name__)
 
@@ -145,9 +146,11 @@ def triage_review(request, session_id):
     
     # Filter out already accepted/rejected suggestions
     pending_suggestions = [s for s in suggestions if s.accepted_bool is None]
+    logger.debug(f"Session {session_id}: Total suggestions {len(suggestions)}, Pending {len(pending_suggestions)}")
     
     # If no pending suggestions left, this session is done
-    if not pending_suggestions and suggestions:
+    if suggestions and not pending_suggestions:
+        logger.info(f"Session {session_id} has no pending suggestions. Redirecting to tasks.")
         return redirect("tasks")
        
     # Parse payload back into Python dicts for the template
@@ -179,3 +182,141 @@ def tasks(request):
     Stub for Phase 5 tasks view.
     """
     return render(request, "core/base.html", {"message": "Tasks placeholder (Phase 5)"})
+
+
+# ── JSON API (for New Frontend) ──────────────────────────────────────────────
+
+def api_auth_check(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+    return None
+
+@csrf_exempt
+def api_inbox(request):
+    """
+    JSON endpoint for brain dump submission.
+    """
+    auth_error = api_auth_check(request)
+    if auth_error: return auth_error
+
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=405)
+        
+    import json
+    try:
+        data = json.loads(request.body)
+        brain_dump = data.get("brain_dump", "").strip()
+    except:
+        brain_dump = request.POST.get("brain_dump", "").strip()
+
+    if not brain_dump:
+        return JsonResponse({"error": "Missing brain_dump"}, status=400)
+        
+    user_id = str(request.user.pk)
+    from core.services import triage_service
+    result = triage_service.run_triage(user_id, brain_dump)
+    
+    if result.get("error"):
+        return JsonResponse({"error": result["error"]}, status=500)
+        
+    return JsonResponse({
+        "session_id": result["session_id"],
+        "message": "Brain dump processed successfully"
+    })
+
+
+@login_required
+def api_triage_suggestions(request, session_id):
+    """
+    Fetch all suggestions for a given session.
+    """
+    auth_error = api_auth_check(request)
+    if auth_error: return auth_error
+
+    user_id = str(request.user.pk)
+    session = graphrag_service.get_triage_session(user_id, session_id)
+    if not session:
+        return JsonResponse({"error": "Session not found"}, status=404)
+        
+    suggestions = graphrag_service.get_suggestions_for_session(user_id, session_id)
+    pending_suggestions = [s for s in suggestions if s.accepted_bool is None]
+    
+    import json
+    parsed = []
+    for s in pending_suggestions:
+        try:
+            payload = json.loads(s.payload_json)
+            parsed.append({
+                "id": s.id,
+                **payload
+            })
+        except:
+            pass
+            
+    return JsonResponse({
+        "session": {
+            "id": session.id,
+            "input_text": session.input_text,
+            "created_at": session.created_at.isoformat(),
+        },
+        "suggestions": parsed
+    })
+
+
+@csrf_exempt
+def api_triage_apply(request):
+    """
+    Apply decisions (accept/reject/edit) to suggestions.
+    """
+    auth_error = api_auth_check(request)
+    if auth_error: return auth_error
+
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=405)
+        
+    import json
+    try:
+        data = json.loads(request.body)
+        session_id = data.get("session_id")
+        decisions = data.get("decisions", [])
+    except:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+        
+    if not session_id or not decisions:
+        return JsonResponse({"error": "Missing session_id or decisions"}, status=400)
+        
+    user_id = str(request.user.pk)
+    from core.services import triage_service
+    try:
+        triage_service.apply_suggestions(user_id, session_id, decisions)
+        return JsonResponse({"success": True})
+    except Exception as e:
+        logger.exception("Failed to apply suggestions")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+def api_tasks(request):
+    """
+    Return all user tasks.
+    """
+    auth_error = api_auth_check(request)
+    if auth_error: return auth_error
+
+    user_id = str(request.user.pk)
+    try:
+        tasks = graphrag_service.list_tasks(user_id)
+        data = []
+        for t in tasks:
+            data.append({
+                "id": t.id,
+                "title": t.title,
+                "status": t.status,
+                "priority": t.priority,
+                "urgency": t.urgency,
+                "effort": t.effort,
+                "description": t.description,
+            })
+        return JsonResponse({"tasks": data})
+    except Exception as e:
+        logger.exception("Failed to fetch tasks")
+        return JsonResponse({"error": str(e)}, status=500)
