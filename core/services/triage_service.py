@@ -96,7 +96,7 @@ def run_triage(user_id: str, brain_dump: str) -> dict:
                 created_at=datetime.now(timezone.utc),
                 suggestion_type="triage_item",
                 payload_json=json.dumps(payload),
-                accepted_bool=False,
+                accepted_bool=None,
             )
 
             # Persist suggestion
@@ -232,14 +232,20 @@ def apply_suggestions(user_id: str, session_id: str, decisions: list[dict]) -> N
             
             # Process Projects
             projs = edited_data.get("project_suggestions") or payload.get("project_suggestions", [])
-            for p_name in projs:
+            for p_item in projs:
+                p_name = p_item.get("name") if isinstance(p_item, dict) else p_item
+                if not p_name or not isinstance(p_name, str):
+                    continue
                 p_node = graphrag_service.find_or_create_project(user_id, p_name)
                 graphrag_service.create_task_part_of_project(task_id, p_node.id)
                 logger.debug(f"Linked task {task_id} to project {p_node.id}")
                 
             # Process Areas
             areas = edited_data.get("area_suggestions") or payload.get("area_suggestions", [])
-            for a_name in areas:
+            for a_item in areas:
+                a_name = a_item.get("name") if isinstance(a_item, dict) else a_item
+                if not a_name or not isinstance(a_name, str):
+                    continue
                 a_node = graphrag_service.find_or_create_area(user_id, a_name)
                 graphrag_service.create_task_in_area(task_id, a_node.id)
                 logger.debug(f"Linked task {task_id} to area {a_node.id}")

@@ -27,6 +27,7 @@ export default function RootLayout({
               <nav className="flex gap-6 text-sm font-medium">
                 <Link href="/" className="hover:text-primary transition-colors">Inbox</Link>
                 <Link href="/tasks" className="hover:text-primary transition-colors">Tasks</Link>
+                <Link href="/projects" className="hover:text-primary transition-colors">Projects</Link>
               </nav>
             </div>
           </header>

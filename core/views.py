@@ -297,16 +297,20 @@ def api_triage_apply(request):
 
 def api_tasks(request):
     """
-    Return all user tasks.
+    Return all user tasks, enriched with projects and areas for filtering.
     """
     auth_error = api_auth_check(request)
     if auth_error: return auth_error
 
     user_id = str(request.user.pk)
     try:
-        tasks = graphrag_service.list_tasks(user_id)
+        tasks_data = graphrag_service.list_tasks_with_context(user_id)
+        projects = graphrag_service.list_projects(user_id)
+        areas = graphrag_service.list_areas(user_id)
+        
         data = []
-        for t in tasks:
+        for t_dict in tasks_data:
+            t = t_dict["task"]
             data.append({
                 "id": t.id,
                 "title": t.title,
@@ -315,8 +319,125 @@ def api_tasks(request):
                 "urgency": t.urgency,
                 "effort": t.effort,
                 "description": t.description,
+                "next_action": t.next_action,
+                "project_id": t_dict["project_id"],
+                "project_name": t_dict["project_name"],
+                "area_id": t_dict["area_id"],
+                "area_name": t_dict["area_name"],
             })
-        return JsonResponse({"tasks": data})
+            
+        projects_data = [{"id": p.id, "name": p.name.get("name", str(p.name)) if isinstance(p.name, dict) else p.name} for p in projects]
+        areas_data = [{"id": a.id, "name": a.name.get("name", str(a.name)) if isinstance(a.name, dict) else a.name} for a in areas]
+            
+        return JsonResponse({
+            "tasks": data,
+            "projects": projects_data,
+            "areas": areas_data
+        })
     except Exception as e:
         logger.exception("Failed to fetch tasks")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def api_projects(request):
+    """
+    List all user projects with their status and task counts.
+    """
+    auth_error = api_auth_check(request)
+    if auth_error: return auth_error
+
+    user_id = str(request.user.pk)
+    try:
+        projects_data = graphrag_service.list_projects_with_stats(user_id)
+        data = []
+        for p_dict in projects_data:
+            p = p_dict["project"]
+            
+            p_name = p.name.get("name", str(p.name)) if isinstance(p.name, dict) else p.name
+            p_outcome = p.outcome.get("outcome", str(p.outcome)) if isinstance(p.outcome, dict) else p.outcome
+            
+            data.append({
+                "id": p.id,
+                "name": p_name,
+                "outcome": p_outcome,
+                "status": p.status,
+                "task_count": p_dict["task_count"]
+            })
+        return JsonResponse({"projects": data})
+    except Exception as e:
+        logger.exception("Failed to fetch projects")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def api_project_detail(request, project_id):
+    """
+    Get project details, including all linked tasks.
+    """
+    auth_error = api_auth_check(request)
+    if auth_error: return auth_error
+
+    user_id = str(request.user.pk)
+    try:
+        result = graphrag_service.get_project_with_tasks(user_id, project_id)
+        if not result:
+            return JsonResponse({"error": "Project not found"}, status=404)
+            
+        p = result["project"]
+        tasks = result["tasks"]
+        
+        p_name = p.name.get("name", str(p.name)) if isinstance(p.name, dict) else p.name
+        p_outcome = p.outcome.get("outcome", str(p.outcome)) if isinstance(p.outcome, dict) else p.outcome
+        
+        project_data = {
+            "id": p.id,
+            "name": p_name,
+            "outcome": p_outcome,
+            "status": p.status,
+            "tasks": [{
+                "id": t.id,
+                "title": t.title,
+                "status": t.status,
+                "priority": t.priority,
+                "urgency": t.urgency,
+                "effort": t.effort,
+                "description": t.description,
+                "next_action": t.next_action,
+            } for t in tasks]
+        }
+        return JsonResponse({"project": project_data})
+    except Exception as e:
+        logger.exception("Failed to fetch project detail")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+def api_task_status(request, task_id):
+    """
+    Update task status inline.
+    """
+    auth_error = api_auth_check(request)
+    if auth_error: return auth_error
+
+    if request.method != "PATCH":
+        return JsonResponse({"error": "PATCH required"}, status=405)
+        
+    import json
+    try:
+        data = json.loads(request.body)
+        status = data.get("status")
+        if not status:
+            return JsonResponse({"error": "status is required"}, status=400)
+    except:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+        
+    user_id = str(request.user.pk)
+    try:
+        success = graphrag_service.update_task(user_id, task_id, {"status": status})
+        if not success:
+            return JsonResponse({"error": "Task not found"}, status=404)
+        return JsonResponse({"success": True, "status": status})
+    except Exception as e:
+        logger.exception("Failed to update task")
         return JsonResponse({"error": str(e)}, status=500)

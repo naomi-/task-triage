@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkles, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -10,7 +10,20 @@ export default function InboxPage() {
   const [content, setContent] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [inboxTasks, setInboxTasks] = useState<any[]>([]);
   const router = useRouter();
+
+  useEffect(() => {
+    async function fetchInboxTasks() {
+      try {
+        const data = await fetchApi("/api/tasks/");
+        setInboxTasks(data.tasks.filter((t: any) => t.status === "INBOX"));
+      } catch (err) {
+        console.error("Failed to load inbox tasks:", err);
+      }
+    }
+    fetchInboxTasks();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,6 +110,31 @@ export default function InboxPage() {
           <span className="text-xs uppercase tracking-widest font-semibold">AI Powered</span>
         </div>
       </div>
+
+      {inboxTasks.length > 0 && (
+        <div className="mt-16 border-t pt-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="flex items-center gap-3 mb-6">
+            <h2 className="text-2xl font-bold">Unsorted Inbox</h2>
+            <span className="bg-primary/10 text-primary text-xs font-bold px-3 py-1 rounded-full">
+              {inboxTasks.length} pending
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {inboxTasks.map((task) => (
+              <div key={task.id} className="bg-white border p-4 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                <h3 className="font-semibold text-foreground mb-1">{task.title}</h3>
+                <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                  {task.description || "No description provided."}
+                </p>
+                <div className="text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
+                  Added: {new Date(task.created_at || Date.now()).toLocaleDateString()}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

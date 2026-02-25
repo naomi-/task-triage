@@ -15,12 +15,21 @@ export async function fetchApi(endpoint: string, options: RequestInit = {}) {
         credentials: 'include' // Crucial for cross-origin session cookies
     });
 
-    console.log(`fetchApi: ${options.method || 'GET'} ${endpoint} - Status: ${response.status}`);
+    if (response.status === 401 && typeof window !== 'undefined') {
+        window.location.href = 'http://localhost:8000/login/';
+    }
 
     if (!response.ok) {
         const errorText = await response.text();
         console.error(`fetchApi Error Body: ${errorText.substring(0, 200)}`);
-        throw new Error(errorText || response.statusText);
+        let errorMessage = errorText || response.statusText;
+        try {
+            const errObj = JSON.parse(errorText);
+            if (errObj.error) errorMessage = errObj.error;
+        } catch {
+            // Ignore parse errors for raw text responses
+        }
+        throw new Error(errorMessage);
     }
 
     const text = await response.text();

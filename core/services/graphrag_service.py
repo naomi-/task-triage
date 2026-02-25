@@ -254,6 +254,55 @@ def list_tasks(user_id: str, status: Optional[str] = None) -> list[TaskNode]:
     return [_task_from_record(r["t"]) for r in records]
 
 
+def list_tasks_with_context(user_id: str, status: Optional[str] = None) -> list[dict]:
+    """
+    Return all Tasks owned by user_id, optionally filtered by status,
+    enriched with Project and Area data.
+    """
+    driver = _get_driver()
+    with driver.session() as session:
+        query = """
+        MATCH (u:User {id: $user_id})-[:OWNS]->(t:Task)
+        """
+        params = {"user_id": user_id}
+
+        if status:
+            query += " WHERE t.status = $status "
+            params["status"] = status
+            
+        query += """
+        OPTIONAL MATCH (t)-[:PART_OF]->(p:Project)
+        OPTIONAL MATCH (t)-[:IN_AREA]->(a:Area)
+        RETURN t, p, a
+        ORDER BY t.created_at DESC
+        """
+        
+        result = session.run(query, **params)
+        records = list(result)
+        
+    tasks_with_context = []
+    for r in records:
+        task = _task_from_record(r["t"])
+        project = r["p"]
+        area = r["a"]
+        
+        p_name = project["name"] if project else None
+        if isinstance(p_name, dict): p_name = p_name.get("name", str(p_name))
+            
+        a_name = area["name"] if area else None
+        if isinstance(a_name, dict): a_name = a_name.get("name", str(a_name))
+        
+        tasks_with_context.append({
+            "task": task,
+            "project_id": project["id"] if project else None,
+            "project_name": p_name,
+            "area_id": area["id"] if area else None,
+            "area_name": a_name,
+        })
+        
+    return tasks_with_context
+
+
 def update_task(user_id: str, task_id: str, updates: dict) -> bool:
     """
     Update writable fields on a Task owned by user_id.
@@ -349,6 +398,76 @@ def list_projects(user_id: str) -> list[ProjectNode]:
         )
         for r in records
     ]
+
+
+def list_projects_with_stats(user_id: str) -> list[dict]:
+    """Return all Projects owned by user_id, including task counts."""
+    from core.dtos import ProjectStatus
+
+    driver = _get_driver()
+    with driver.session() as session:
+        result = session.run(
+            """
+            MATCH (u:User {id: $user_id})-[:OWNS]->(p:Project)
+            OPTIONAL MATCH (t:Task)-[:PART_OF]->(p)
+            WHERE (u)-[:OWNS]->(t)
+            RETURN p, count(t) as task_count
+            """,
+            user_id=user_id,
+        )
+        records = list(result)
+
+    projects = []
+    for r in records:
+        p = r["p"]
+        projects.append({
+            "project": ProjectNode(
+                id=p["id"],
+                name=p["name"],
+                outcome=p.get("outcome", ""),
+                status=p.get("status", ProjectStatus.ACTIVE),
+            ),
+            "task_count": r["task_count"]
+        })
+    return projects
+
+
+def get_project_with_tasks(user_id: str, project_id: str) -> dict | None:
+    """Return a Project owned by user_id and all its linked Tasks."""
+    from core.dtos import ProjectStatus
+
+    driver = _get_driver()
+    with driver.session() as session:
+        result = session.run(
+            """
+            MATCH (u:User {id: $user_id})-[:OWNS]->(p:Project {id: $project_id})
+            OPTIONAL MATCH (t:Task)-[:PART_OF]->(p)
+            WHERE (u)-[:OWNS]->(t)
+            RETURN p, collect(t) as tasks
+            """,
+            user_id=user_id,
+            project_id=project_id,
+        )
+        record = result.single()
+        if not record:
+            return None
+            
+        p = record["p"]
+        tasks_records = record["tasks"]
+        
+        project_node = ProjectNode(
+            id=p["id"],
+            name=p["name"],
+            outcome=p.get("outcome", ""),
+            status=p.get("status", ProjectStatus.ACTIVE),
+        )
+        
+        tasks = []
+        for t in tasks_records:
+            if t is not None:
+                tasks.append(_task_from_record(t))
+                
+        return {"project": project_node, "tasks": tasks}
 
 
 # ---------------------------------------------------------------------------
